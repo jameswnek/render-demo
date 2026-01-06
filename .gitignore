@@ -18,7 +18,7 @@
 /public/storage
 /storage/*.key
 /storage/pail
-/vendor
+# /vendor  # Committed for Render free tier (no composer install during build)
 Homestead.json
 Homestead.yaml
 Thumbs.db
