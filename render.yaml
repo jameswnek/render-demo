@@ -1,0 +1,40 @@
+databases:
+  - name: laravel-postgres
+    plan: free
+    databaseName: laravel_demo
+    user: laravel_user
+
+services:
+  - type: web
+    plan: free
+    name: laravel-demo
+    runtime: php
+    buildCommand: ./scripts/render-build.sh
+    startCommand: php artisan serve --host=0.0.0.0 --port=$PORT
+    envVars:
+      - key: APP_NAME
+        value: "Laravel Demo"
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: APP_URL
+        fromService:
+          type: web
+          name: laravel-demo
+          property: host
+      - key: APP_KEY
+        generateValue: true
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DATABASE_URL
+        fromDatabase:
+          name: laravel-postgres
+          property: connectionString
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: SESSION_DRIVER
+        value: cookie
+      - key: CACHE_STORE
+        value: file
+
