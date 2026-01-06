@@ -1,41 +1,39 @@
-FROM php:8.2-cli-alpine
+FROM composer:2 AS composer
 
-# Install system dependencies
-RUN apk add --no-cache \
+FROM php:8.2-cli
+
+# Install system dependencies and PHP extensions
+RUN apt-get update && apt-get install -y \
     git \
     curl \
     libpng-dev \
-    oniguruma-dev \
+    libonig-dev \
     libxml2-dev \
-    postgresql-dev \
+    libpq-dev \
     libzip-dev \
     zip \
-    unzip
+    unzip \
+    && docker-php-ext-install pdo pdo_pgsql pgsql mbstring exif pcntl bcmath gd zip \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install PHP extensions
-RUN docker-php-ext-install pdo pdo_pgsql pgsql mbstring exif pcntl bcmath gd zip
-
-# Install Composer
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+# Copy composer from composer image
+COPY --from=composer /usr/bin/composer /usr/bin/composer
 
 # Set working directory
 WORKDIR /app
 
-# Copy composer files first
-COPY composer.json composer.lock ./
+# Increase PHP memory limit for composer
+RUN echo "memory_limit=512M" > /usr/local/etc/php/conf.d/memory.ini
 
-# Install dependencies (no scripts yet, since autoload files reference app code)
-RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
-
-# Copy application code
+# Copy everything
 COPY . .
 
-# Create directories and set permissions
+# Create directories
 RUN mkdir -p storage/logs storage/framework/cache storage/framework/sessions storage/framework/views bootstrap/cache \
     && chmod -R 777 storage bootstrap/cache
 
-# Generate autoloader
-RUN composer dump-autoload --optimize
+# Install dependencies with increased memory
+RUN COMPOSER_MEMORY_LIMIT=-1 composer install --no-dev --optimize-autoloader --no-interaction
 
 # Expose port
 EXPOSE 10000
