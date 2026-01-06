@@ -1,6 +1,6 @@
 FROM php:8.2-cli
 
-# Install system dependencies
+# Install system dependencies and PHP extensions
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -8,29 +8,30 @@ RUN apt-get update && apt-get install -y \
     libonig-dev \
     libxml2-dev \
     libpq-dev \
+    libzip-dev \
     zip \
     unzip \
-    && docker-php-ext-install pdo pdo_pgsql pgsql mbstring exif pcntl bcmath gd \
+    && docker-php-ext-install pdo pdo_pgsql pgsql mbstring exif pcntl bcmath gd zip \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 # Set working directory
-WORKDIR /var/www/html
+WORKDIR /app
 
 # Copy application files
 COPY . .
 
-# Install PHP dependencies
+# Create necessary directories and set permissions
+RUN mkdir -p storage/logs storage/framework/cache storage/framework/sessions storage/framework/views bootstrap/cache \
+    && chmod -R 777 storage bootstrap/cache
+
+# Install dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# Set permissions
-RUN chmod -R 775 storage bootstrap/cache
-
-# Expose port
+# Expose port (Render uses 10000 by default)
 EXPOSE 10000
 
-# Start command
-CMD php artisan migrate --force && php artisan db:seed --force && php artisan serve --host=0.0.0.0 --port=10000
-
+# Start the application
+CMD php artisan migrate --force && php artisan db:seed --force && php artisan serve --host=0.0.0.0 --port=${PORT:-10000}
